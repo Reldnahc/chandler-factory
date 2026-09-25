@@ -73,7 +73,7 @@ const inputs = { role: 'implementation', workspace: resolve('workspace'), task: 
   token: resolve('token'), auth: resolve('auth.json'), imageId: `sha256:${'a'.repeat(64)}` };
 
 test('all roles have no network, host namespace, inherited environment, or Docker socket', () => {
-  for (const role of ['coordinator', 'implementation', 'reviewer']) {
+  for (const role of ['implementation', 'reviewer']) {
     const args = dockerArguments({ ...inputs, role });
     assert.equal(args[args.indexOf('--network') + 1], 'none');
     assert.equal(args[args.indexOf('--user') + 1], '1000:1000');
@@ -107,7 +107,7 @@ test('credentials are chosen from one role and cannot be within the checkout', t
   assert.deepEqual(JSON.parse(credentialPayload(selected).toString()), { githubToken: 'synthetic-reviewer', codexAuth: {} });
   mkdirSync(join(f.checkout, 'secrets'));
   assert.throws(() => credentials(join(f.checkout, 'secrets'), 'reviewer', f.checkout, join(f.root, 'run')), /outside the checkout/);
-  assert.throws(() => credentials(root, 'coordinator', f.checkout, join(f.root, 'run')), /ENOENT/);
+  assert.throws(() => credentials(root, 'coordinator', f.checkout, join(f.root, 'run')), /Unknown role/);
 });
 
 test('malformed auth never exposes its contents in host errors or launcher stderr', t => {
@@ -126,7 +126,7 @@ test('malformed auth never exposes its contents in host errors or launcher stder
     '--checkout', f.checkout, '--revision', 'a'.repeat(40), '--task', task, '--credentials', root, '--runs', runs],
     { encoding: 'utf8', windowsHide: true });
   assert.equal(result.status, 1);
-  assert.match(result.stderr, /^Codex auth is not valid JSON\.\s*$/);
+  assert.match(result.stderr, /^one-shot launcher retired; use launcher service\s*$/);
   assert.equal(`${result.stdout}${result.stderr}`.includes(sentinel), false);
 });
 

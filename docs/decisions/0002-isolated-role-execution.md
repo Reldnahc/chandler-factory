@@ -1,10 +1,14 @@
-# 0002: Separate container execution for agent roles
+# 0002: Separate container execution for implementation and review
 
 Decision date: 2026-09-24
 
 Decision status: Accepted by Chandler during foundation implementation. Acceptance
 authorizes this execution approach; it does not assert that credential isolation or
 completion enforcement has been implemented or verified.
+
+The main conversation is the coordinator and uses the coordinator App. It is not a
+separate container worker. Launcher readiness is a prerequisite for operational use;
+see the [readiness specification](../launcher-readiness.md).
 
 ## Context
 
@@ -14,14 +18,14 @@ however, do not establish separate GitHub authority. The current `gh` session us
 `Reldnahc`. Selecting a different token does not isolate a role if it can still obtain
 the owner token or another role's credentials.
 
-Role isolation therefore needs a real execution boundary, including the coordinator.
-Keeping an unrestricted coordinator would allow it to bypass restrictions applied only
-to implementation and review.
+Worker isolation therefore needs a real execution boundary. Restricting the main
+coordinator's ability to bypass the launcher is a separate problem; worker containers
+do not impose that restriction on the host conversation.
 
 ## Decision
 
-Use separate ordinary Codex processes running in role containers, started by a small
-trusted host launcher. This is an execution boundary for bounded assignments, not a
+Use separate ordinary Codex processes for implementation and review in containers,
+started by a trusted host launcher. This is an execution boundary for bounded assignments, not a
 new scheduler, backlog, or orchestration framework. GitHub remains the source of work
 and state, and the coordinator continues to reason about assignments and results.
 
@@ -30,12 +34,12 @@ The boundary must have these properties:
 - Each role receives its assignment, necessary repository access, and only its intended
   credentials. Implementation and review act as distinct GitHub identities; two tokens
   for the same identity do not meet this requirement.
-- The coordinator receives only its management authority. It cannot obtain owner or
-  other role credentials or turn off required verification and review.
+- The coordinator App supplies management authority to the main conversation. Do not
+  infer isolation of that conversation from the App's permissions or worker boundaries.
 - Role containers do not receive the owner's home directory, Docker socket, or other
   host paths that expose broader credentials or execution authority.
-- The launcher is trusted host code outside the role containers' authority. Roles cannot
-  invoke it directly, mutate its active configuration, or use it to expand their access.
+- The launcher is trusted host code outside the worker containers' authority. Workers
+  cannot invoke it directly, mutate its active configuration, or use it to expand their access.
   Proposed launcher changes require review before adoption into the trusted host path.
 - Container launch configuration must not silently fall back to shared owner credentials.
   Missing or invalid role credentials fail the affected operation explicitly.
@@ -60,9 +64,9 @@ job of starting approved role processes with bounded inputs and authority.
 
 Demonstrate actual role identities, denied access to other roles' and owner credentials,
 absence of Docker control, inability to invoke or alter the trusted launcher, and the
-expected GitHub review and integration behavior. Include the coordinator in negative
-permission tests. Record the commands, observations, revision, environment, and limits;
-configuration inspection alone is not proof of the runtime boundary.
+expected GitHub review and integration behavior. Assess coordinator App permissions
+separately from host-session access. Record the commands, observations, revision,
+environment, and limits; configuration inspection alone is not proof of the runtime boundary.
 
 The present bootstrap session still has owner access. Do not describe that session or
 its shared native workers as isolated role execution. Implementation and verification

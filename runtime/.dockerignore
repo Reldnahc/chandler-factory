@@ -1,6 +1,8 @@
 *
 !Dockerfile
 !entrypoint.mjs
+!app-server-bridge.mjs
+!worker-policy.mjs
 !probe.mjs
 !network-probe.mjs
 !proxy-relay.mjs

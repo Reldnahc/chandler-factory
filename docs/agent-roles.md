@@ -1,5 +1,10 @@
 # Agent roles
 
+The main conversation with Chandler is the coordinator. Operational dispatch is
+on hold until the [launcher readiness criteria](launcher-readiness.md) are agreed,
+implemented, demonstrated, and use is explicitly authorized. Do not launch a
+separate coordinator worker.
+
 Assign a role explicitly when dispatching work. Use fresh agents for bounded
 implementation and review assignments so task-specific investigation does not continually
 accumulate in the coordinator. Do not copy the parent conversation into each worker
@@ -16,20 +21,19 @@ entry point locates guidance; it should not become a duplicate of every procedur
 
 ## Load the assigned brief
 
-| Role | Responsibility | Brief |
-| --- | --- | --- |
-| Coordinator | Authorized work selection, bounded assignments, records, and completion coordination | [Coordinator](roles/coordinator.md) |
-| Implementation | One bounded investigation or change and its verification evidence | [Implementation](roles/implementation.md) |
-| Reviewer | Independent assessment of the actual result against agreed criteria | [Reviewer](roles/reviewer.md) |
+| Role | Responsibility | Model / reasoning | Brief |
+| --- | --- | --- | --- |
+| Coordinator | Authorized work selection, bounded assignments, records, and completion coordination | Astra / Ultra; Chandler selects it in the app | [Coordinator](roles/coordinator.md) |
+| Implementation | One bounded investigation or change and its verification evidence | Astra / Medium; trusted runtime must enforce it | [Implementation](roles/implementation.md) |
+| Reviewer | Independent assessment of the actual result against agreed criteria | Astra / High; trusted runtime must enforce it | [Reviewer](roles/reviewer.md) |
 
 Workers load their applicable brief and task references, not all three briefs. The
 coordinator retains concise outcomes and evidence links rather than worker transcripts.
 
-The current trusted host manually dispatches containers and applies Project state
-changes. The isolated coordinator returns task packets and transition requests; it
-cannot invoke the host launcher or write the Project directly. The host provides the
-relevant live Project view for selection and rechecks it before applying a transition.
-This handoff does not add a scheduler or a second backlog.
+The coordinator reads live work records and will dispatch and communicate with workers
+through the trusted interface once ready. The coordinator App belongs to this main
+conversation. It has Issues write but no Project write permission; board transitions
+need separately authorized access, never a silent fallback to owner credentials.
 
 ## Required authority boundaries
 
@@ -45,15 +49,15 @@ ordinary review remains evidence even though the native required-approval count 
 zero. See the [completion procedure](workflow.md#done) for the required pre-merge
 refresh and its limitation after same-SHA review changes.
 
-The trusted launcher runs on the host, outside the role containers' authority. The
+The trusted launcher runs on the host, outside the worker containers' authority. The
 containers must not receive the owner's home directory, Docker socket, other roles'
-credentials, or a way to invoke or alter the trusted launcher. The coordinator is
-included in these restrictions; it cannot grant itself broader access or disable
-required checks. These are requirements to prove with tests, not assumptions implied
-by running a container.
+credentials, or a way to invoke or alter the trusted launcher. Restricting the main
+coordinator's alternative execution paths is a separate future step, considered only
+after the launcher preserves the needed communication and lifecycle capabilities.
+The current host conversation is not credential-isolated by the worker containers.
 
 The existing authenticated `gh` session belongs to the repository owner, `Reldnahc`.
 It is bootstrap access, not evidence that any role's credentials are isolated. A worker
-in the same environment may retain access to that authority. Until isolated execution
-and GitHub enforcement are tested, use actual checks and separate review, but describe
-them as process steps rather than guaranteed permission boundaries.
+in the same environment may retain access to that authority. Do not describe process
+rules or model settings as enforced until the specific control is implemented and
+demonstrated.

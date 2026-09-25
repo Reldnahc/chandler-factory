@@ -3,8 +3,8 @@ import { execFileSync } from 'node:child_process';
 import { lstatSync, realpathSync, mkdirSync, writeFileSync, existsSync, readdirSync, openSync, fstatSync, readSync, closeSync } from 'node:fs';
 import { resolve, relative, isAbsolute, parse, dirname, join } from 'node:path';
 
-export const ROLES = ['coordinator', 'implementation', 'reviewer'];
-export const IMAGE = 'chandler-factory-role:0.1';
+export const ROLES = ['implementation', 'reviewer'];
+export const IMAGE = 'chandler-factory-role:0.2';
 
 export function contained(parent, child) {
   const path = relative(resolve(parent), resolve(child));
@@ -154,6 +154,6 @@ export function dockerArguments({ role, workspace, task, output, imageId, probe 
     args.push('--mount', `type=volume,src=${proxyVolume},dst=/proxy,readonly`);
   }
   if (probe && networkProbe) throw new Error('Choose one fixed diagnostic.');
-  args.push(imageId, probe ? 'probe' : networkProbe ? 'network-probe' : 'run');
+  args.push(imageId, probe ? 'probe' : networkProbe ? 'network-probe' : 'app-server');
   return args;
 }

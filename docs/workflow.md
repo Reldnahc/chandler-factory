@@ -4,6 +4,11 @@ This is the canonical workflow policy. It records agreed behavior; a written rul
 not evidence that a tool or permission boundary enforces it. See
 [verification](verification.md) for the distinction.
 
+Operational execution is on hold while the launcher is prepared. The
+[readiness specification](launcher-readiness.md) records the current scope;
+the Ready-state policy below does not authorize another trial or worker run during
+this hold.
+
 ## Records and ownership
 
 | Record | Owns | Example |
@@ -31,11 +36,11 @@ is Ready, the agent may perform routine work autonomously, including routine cor
 identified during review. Completion requires verification and a separate review pass;
 Chandler need not accept every routine story individually.
 
-The coordinator proposes board transitions and selects Ready work by priority when
-asked to continue. The trusted host currently reads the live Project, supplies the
-relevant view to the coordinator, and manually applies transitions. The isolated
-coordinator has no Project write authority and cannot invoke the host launcher. It
-can maintain issue records using its own limited authority. There is no scheduler.
+The main conversation with Chandler is the coordinator. It reads the live Project,
+selects authorized Ready work by priority, and dispatches implementation and review
+through the trusted interface once ready for use. Its coordinator App can maintain
+issue records but has no Project write authority. Board transitions require separately
+authorized access. There is no separate coordinator worker or scheduler.
 
 The priority values, in order, are **Showstopper, High, Medium, Low**. Medium
 is the ordinary default. Showstopper is rare and reserved for work whose resolution is

@@ -4,6 +4,11 @@ This document defines evidence for the foundation. A proposed test is not a pass
 test, and a local fixture cannot demonstrate live GitHub permissions. Current story
 state and remaining assignments belong in the Project and issues, not this document.
 
+The [launcher readiness specification](launcher-readiness.md) takes precedence over
+operational trial procedures while the launcher is being prepared. Live worker and
+workflow trials require explicit authorization. Existing evidence does not establish
+readiness of the proposed communication and lifecycle interface.
+
 ## Evidence record
 
 For each executed check, retain its command or procedure, date, repository revision,
@@ -42,18 +47,19 @@ guarantee that future agents will never err.
 
 The existing `gh` session authenticates as owner `Reldnahc`. Assigning a worker a
 different token does not isolate it if the process can also reach that owner session,
-another role's credentials, or configuration that grants broader access. The coordinator
-must be included in isolation checks.
+another role's credentials, or configuration that grants broader access. The main
+coordinator conversation's authority must be assessed separately from worker isolation.
 
 Likewise, a script that rejects an unsupported Done transition demonstrates that the
 script checks evidence. It does not prove that the same credential cannot bypass the
 script and write Done directly through the Project API. Record such limitations
 explicitly and do not call completion enforcement solved while they remain.
 
-The current operating arrangement deliberately leaves dispatch and Project transitions
-with the trusted host. The isolated coordinator returns requests; it cannot invoke the
-host launcher or write the Project directly. The desktop owner bootstrap session is
-outside that boundary. Its actions are not evidence of routine-role restrictions.
+The main conversation is the coordinator and will use the trusted worker interface
+once ready. There is no separate coordinator worker. The coordinator App has no
+Project write authority. The desktop session's owner access is outside the worker
+boundary; its actions are not evidence of routine-role restrictions. Forcing it to use
+only the launcher is a later, separately validated environment change.
 
 The accepted merge configuration uses required checks rather than native approval
 count: Workflow checks from GitHub Actions App 15368 and Independent review from reviewer

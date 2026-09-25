@@ -30,7 +30,7 @@ try {
     const task = join(home, 'task.md');
     writeFileSync(task, 'Fixed synthetic egress test.');
     const args = dockerArguments({ role, workspace, output, task, imageId, networkProbe: true, proxyVolume: identifier });
-    const report = JSON.parse(docker(args, JSON.stringify({ githubToken: `factory-canary-${role}`, codexAuth: { fixture: true } })));
+    const report = JSON.parse(docker(args, JSON.stringify({ githubToken: `factory-canary-${role}`, codexAuth: { fixture: true } }) + '\n'));
     if (report.results?.length !== 9 || report.results.some(result => result.passed !== true)) throw new Error('Incomplete network evidence.');
     if (readFileSync(join(output, 'egress-marker'), 'utf8') !== 'ok') throw new Error('Missing network action artifact.');
     reports.push(report);

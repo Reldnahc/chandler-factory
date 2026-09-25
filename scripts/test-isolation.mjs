@@ -21,7 +21,7 @@ for (const role of ROLES) {
   writeFileSync(task, 'Synthetic boundary test.');
   const args = dockerArguments({ role, workspace, output, task, imageId, probe: true });
   const raw = execFileSync('docker', args, { encoding: 'utf8', windowsHide: true,
-    input: JSON.stringify({ githubToken: `factory-canary-${role}`, codexAuth: { fixture: true } }),
+    input: JSON.stringify({ githubToken: `factory-canary-${role}`, codexAuth: { fixture: true } }) + '\n',
     env: { ...process.env, FACTORY_OWNER_CANARY: sentinel }, maxBuffer: 1024 * 1024 });
   if (raw.includes(sentinel)) throw new Error('A host canary escaped into the role report.');
   const report = JSON.parse(raw.trim());
