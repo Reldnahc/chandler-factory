@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { EventEmitter } from 'node:events';
+import { PassThrough } from 'node:stream';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { WorkerManager } from '../scripts/lib/worker-manager.mjs';
+import { AppServerClient } from '../scripts/lib/app-server-client.mjs';
 import { FileWorkerStore, MemoryWorkerStore } from '../scripts/lib/worker-store.mjs';
 
 const revision = 'a'.repeat(40);
@@ -12,7 +13,7 @@ const tick = () => new Promise(resolve => setImmediate(resolve));
 function harness(options = {}) {
   const clients = []; const resources = [];
   const driver = { async prepare({ role, workerId }) {
-    const c = new EventEmitter(); c.calls = []; c.responses = []; c.rejections = []; c.turn = 0;
+    const c = new AppServerClient(new PassThrough(), new PassThrough()); c.calls = []; c.responses = []; c.rejections = []; c.turn = 0;
     c.role = role; c.thread = `thread-${workerId}`; c.effort = role === 'reviewer' ? 'high' : 'medium';
     c.notify = () => {};
     c.respond = (id, result) => c.responses.push({ id, result });
@@ -28,7 +29,7 @@ function harness(options = {}) {
     c.note = (method, p) => c.emit('notification', { method, params: { threadId: c.thread, ...p } });
     const r = { client: c, source: { revision }, artifacts: { workspace: '/trusted/work' }, runtime: { version: 'fixture' }, closes: 0,
       sanitize: v => JSON.parse(JSON.stringify(v).replaceAll('fixture-secret', '[redacted]')),
-      async close() { this.closes++; if (options.closeFail) throw new Error('secret error'); } };
+      async close() { this.closes++; c.close(); if (options.closeFail) throw new Error('secret error'); } };
     clients.push(c); resources.push(r); return r;
   } };
   const store = options.store ?? new MemoryWorkerStore(options);
@@ -126,18 +127,38 @@ test('unsupported approval, secret input and resolved questions are never answer
   await h.manager.shutdown();
 });
 
-test('transport death closes resources; late messages are ignored', async () => {
+test('intentional close completes without transport failure or manufactured uncertainty', async () => {
+  const h = harness(); const w = await h.start(); const deaths = [];
+  h.clients[0].on('dead', error => deaths.push(error.code));
+  const closed = await h.manager.dispatch('close', { requestId: 'close', workerId: w.workerId });
+  assert.deepEqual(deaths, ['CLOSED']);
+  assert.equal(closed.state, 'closed'); assert.equal(closed.cleanup, 'complete'); assert.equal(closed.uncertain, false);
+  const seen = await h.manager.dispatch('observe', { workerId: w.workerId });
+  assert.equal(seen.events.some(e => e.type === 'failed'), false);
+  assert.equal(seen.events.at(-1).type, 'closed'); assert.equal(h.resources[0].closes, 1);
+  assert.equal(h.store.load().workers[0].uncertain, false);
+});
+
+test('transport death closes resources; late messages are ignored and explicit close retains uncertainty', async () => {
   const h = harness(); const w = await h.start(); const c = h.clients[0];
   c.emit('dead', new Error('secret packet')); await tick();
   const before = (await h.manager.dispatch('list')).workers[0]; assert.equal(before.state, 'failed'); assert.equal(h.resources[0].closes, 1);
   c.note('item/agentMessage/delta', { turnId: w.turnId, delta: 'late' });
   assert.equal((await h.manager.dispatch('list')).workers[0].cursor, before.cursor);
+  assert.equal(before.uncertain, true);
+  const closed = await h.manager.dispatch('close', { requestId: 'close', workerId: w.workerId });
+  assert.equal(closed.state, 'closed'); assert.equal(closed.cleanup, 'complete'); assert.equal(closed.uncertain, true);
+  const seen = await h.manager.dispatch('observe', { workerId: w.workerId });
+  assert.deepEqual(seen.events.filter(e => e.type === 'failed').map(e => e.reason), ['transport-dead']);
 });
 
 test('cleanup failure stays failed, consumes capacity, allows explicit close retry', async () => {
   const opts = { closeFail: true, maxWorkers: 1 }; const h = harness(opts); const w = await h.start();
-  await assert.rejects(h.manager.dispatch('close', { requestId: 'c', workerId: w.workerId }), { code: 'CLEANUP_FAILED' });
+  await assert.rejects(h.manager.dispatch('close', { requestId: 'c', workerId: w.workerId }), { code: 'CLEANUP_FAILED', uncertain: true });
   assert.equal((await h.manager.dispatch('list')).workers[0].cleanup, 'failed');
+  const seen = await h.manager.dispatch('observe', { workerId: w.workerId });
+  assert.equal(seen.worker.state, 'failed');
+  assert.equal(seen.events.some(e => e.type === 'failed' && e.reason === 'transport-dead'), false);
   await assert.rejects(h.start('another'), { code: 'WORKER_LIMIT' });
   await assert.rejects(h.manager.shutdown(), { code: 'SHUTDOWN_FAILED' });
   opts.closeFail = false;

@@ -196,7 +196,8 @@ export class WorkerManager {
       const client = w.resource.client;
       client.on('notification', value => { try { this.notification(w, value); } catch { void this.fail(w, 'invalid-notification').catch(() => {}); } });
       client.on('request', value => { void this.serverRequest(w, value).catch(() => this.fail(w, 'request-routing-failed')).catch(() => {}); });
-      client.on('dead', () => { if (!terminal.has(w.data.state)) void this.fail(w, 'transport-dead').catch(() => {}); });
+      // resource.close() intentionally closes the client and emits dead before cleanup completes.
+      client.on('dead', () => { if (!w.closing && !terminal.has(w.data.state)) void this.fail(w, 'transport-dead').catch(() => {}); });
       await this.rpc(w, 'initialize', { clientInfo: { name: 'chandler-worker-launcher', version: '1.0.0' }, capabilities: { experimentalApi: true } });
       await this.bounded(Promise.resolve(client.notify('initialized')));
       const started = await this.rpc(w, 'thread/start', { model: policy.model, config: { model_reasoning_effort: policy.effort }, ephemeral: true });
