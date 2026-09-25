@@ -78,6 +78,33 @@ gets a writable snapshot; review gets a read-only snapshot. Each gets its own ou
 directory and immutable task packet. Returned artifacts remain untrusted and require
 inspection before integration or host execution.
 
+Use a run location verified to support Docker bind mounts in both directions.
+In the live trial, the protected AppData run path was visible on Windows but
+appeared empty in Docker Desktop; container writes did not reach that host path.
+Controlled canaries worked from Documents with inherited and filtered Docker
+environments. The coordinator moved the retry runs to a verified Documents
+location while retaining keys, credentials, state, and deployment elsewhere in
+protected locations. A directory's existence on the host is insufficient evidence
+that Docker sees it; Documents itself is not a universal guarantee.
+
+Before reading role credentials or launching a model, the trusted driver runs a
+fixed, credential-free preflight on the resolved worker image. It compares a
+host-computed SHA-256 digest of every snapshot file's name and contents (including
+entry types and directory names) with the mounted snapshot, checks the mounted
+task digest, and writes a fresh random output challenge that the host must read
+back exactly. Empty, missing, changed, or disconnected mounts fail closed. The
+probe has no network, a read-only root and input mounts, a non-root user, dropped
+capabilities, and bounded resources. It shares the startup deadline and labelled
+container cleanup path; uncertain cleanup retains a retry handle. A verified
+challenge is removed; failed-run artifacts remain available for inspection.
+
+This is a point-in-time mount check, not continuous integrity monitoring or proof
+of credential isolation, Docker trustworthiness, or operational readiness. It
+hashes content and names, not platform-dependent permissions or timestamps. Host
+run directories still require protection against concurrent modification. Local
+fixture tests execute the fixed probe code with simulated mounts; a deployed
+Docker retry and independent review remain necessary evidence.
+
 Workers run without an IP network connection, host namespaces, Docker socket, or
 elevated capabilities. A loopback relay reaches a mounted Unix socket in a separate
 egress proxy. The proxy permits selected CONNECT destinations and rejects nonpublic

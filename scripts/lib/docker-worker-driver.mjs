@@ -1,8 +1,9 @@
 // Trusted host adapter. Constructor configuration must come from protected deployment.
 import { execFile as nativeExecFile, spawn as nativeSpawn } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import * as fs from 'node:fs';
+import { mkdirSync, writeFileSync, readFileSync, unlinkSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, createHash } from 'node:crypto';
 import { AppServerClient } from './app-server-client.mjs';
 import { POLICY_VERSION, workerPolicy } from '../../runtime/worker-policy.mjs';
 import { IMAGE, ROLES, plainPath, contained, snapshot, credentials, credentialPayload, dockerArguments } from './role-launch.mjs';
@@ -12,6 +13,43 @@ const overlap = (a, b) => contained(a, b) || contained(b, a);
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const hostEnvironment = () => Object.fromEntries(Object.entries(process.env).filter(([key]) =>
   ['path', 'systemroot', 'windir', 'temp', 'tmp', 'userprofile', 'home'].includes(key.toLowerCase())));
+
+// Identical fixed digest code runs on the host and in the credential-free container.
+// Include names and entry types, not platform-dependent modes or timestamps.
+function snapshotDigest(root, fs, createHash) {
+  const hash = createHash('sha256');
+  let files = 0, bytes = 0, entries = 0;
+  function visit(path, name) {
+    if (++entries > 20000) throw new Error('Snapshot entry limit exceeded.');
+    const stat = fs.lstatSync(path);
+    if (stat.isDirectory()) {
+      hash.update(JSON.stringify(['directory', name]));
+      for (const child of fs.readdirSync(path).sort()) visit(path + '/' + child, name + '/' + child);
+    } else if (stat.isFile()) {
+      if (++files > 10000 || stat.size > 16 * 1024 * 1024 || (bytes += stat.size) > 100 * 1024 * 1024) {
+        throw new Error('Snapshot size limit exceeded.');
+      }
+      const contents = fs.readFileSync(path);
+      if (contents.length !== stat.size) throw new Error('Snapshot changed while reading.');
+      hash.update(JSON.stringify(['file', name, contents.length]));
+      hash.update(contents);
+    } else throw new Error('Snapshot contains unsupported entry.');
+  }
+  visit(root, '');
+  if (!files) throw new Error('Empty snapshot.');
+  return hash.digest('hex');
+}
+const MOUNT_PREFLIGHT = `
+const fs = require('node:fs');
+const { createHash } = require('node:crypto');
+const digest = (${snapshotDigest.toString()});
+const [source, task, challenge] = process.argv.slice(1);
+if (digest('/workspace', fs, createHash) !== source ||
+    createHash('sha256').update(fs.readFileSync('/task.md')).digest('hex') !== task) {
+  throw new Error('Mounted input mismatch.');
+}
+fs.writeFileSync('/output/.mount-preflight', challenge, { flag: 'wx' });
+`;
 
 export class WorkerPreparationError extends Error {
   constructor(resource) {
@@ -124,6 +162,8 @@ export class DockerWorkerDriver {
       const source = this.takeSnapshot(this.checkout, revision, workspace);
       mkdirSync(output);
       writeFileSync(taskPath, `Source revision: ${source.revision}\n\n${task}`, { flag: 'wx' });
+      const sourceDigest = snapshotDigest(workspace, fs, createHash);
+      const taskDigest = createHash('sha256').update(readFileSync(taskPath)).digest('hex');
       const imageId = await startupDocker(['image', 'inspect', IMAGE, '--format', '{{.Id}}']);
       const proxyImage = await startupDocker(['image', 'inspect', 'chandler-factory-egress:0.1', '--format', '{{.Id}}']);
       if (!IMAGE_ID.test(imageId) || !IMAGE_ID.test(proxyImage)) throw new Error('Invalid runtime image.');
@@ -140,7 +180,19 @@ export class DockerWorkerDriver {
         policy.features?.multi_agent !== false || policy.features?.multi_agent_v2 !== false ||
         policy.features?.default_mode_request_user_input !== true) throw new Error('Incompatible runtime policy.');
       await removeOwned(containerName, false, startupDocker); workerOwned = false;
-      // Read only the selected role, after policy acceptance. Never put secrets in arguments or mounts.
+      const challenge = randomBytes(32).toString('hex');
+      workerOwned = true;
+      await startupDocker(['run', '--name', containerName, '--label', label, '--pull', 'never',
+        '--network', 'none', '--read-only', '--user', '1000:1000', '--cap-drop', 'ALL',
+        '--security-opt', 'no-new-privileges=true', '--pids-limit', '64', '--memory', '256m', '--cpus', '0.5',
+        '--mount', `type=bind,src=${workspace},dst=/workspace,readonly`,
+        '--mount', `type=bind,src=${taskPath},dst=/task.md,readonly`,
+        '--mount', `type=bind,src=${output},dst=/output`,
+        '--entrypoint', 'node', imageId, '-e', MOUNT_PREFLIGHT, sourceDigest, taskDigest, challenge]);
+      if (readFileSync(join(output, '.mount-preflight'), 'utf8') !== challenge) throw new Error('Output mount mismatch.');
+      unlinkSync(join(output, '.mount-preflight'));
+      await removeOwned(containerName, false, startupDocker); workerOwned = false;
+      // Read only the selected role, after policy and mount acceptance. Never put secrets in arguments or mounts.
       const files = credentials(this.credentials, role, this.checkout, directory);
       volumeOwned = true;
       await startupDocker(['volume', 'create', '--label', label, volume]);
