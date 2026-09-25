@@ -1,0 +1,24 @@
+{
+  "repository": "Reldnahc/chandler-factory",
+  "owner": "Reldnahc",
+  "number": 2,
+  "id": "PVT_kwHOAQFjkc4BknGF",
+  "url": "https://github.com/users/Reldnahc/projects/2",
+  "statusField": "PVTSSF_lAHOAQFjkc4BknGFzhjXFvg",
+  "statuses": {
+    "Backlog": "afb99ae8",
+    "Ready": "17f35f0d",
+    "In progress": "90821cb2",
+    "Review": "7cda2cb4",
+    "Done": "9c76fc10",
+    "Blocked": "9789ade3",
+    "Cancelled": "6b0e7b57"
+  },
+  "priorityField": "PVTSSF_lAHOAQFjkc4BknGFzhjXF_g",
+  "priorities": {
+    "Showstopper": "8bc35d6e",
+    "High": "e8a025e7",
+    "Medium": "59751664",
+    "Low": "bb142229"
+  }
+}

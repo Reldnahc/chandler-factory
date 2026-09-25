@@ -1,0 +1,13 @@
+{
+  "name": "Reldnahc Chandler Implementer",
+  "description": "Implementation identity for bounded Chandler Factory assignments.",
+  "url": "https://github.com/Reldnahc/chandler-factory",
+  "public": false,
+  "default_permissions": {
+    "metadata": "read",
+    "contents": "write",
+    "pull_requests": "write"
+  },
+  "default_events": [],
+  "request_oauth_on_install": false
+}

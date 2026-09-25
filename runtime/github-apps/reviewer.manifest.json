@@ -1,0 +1,13 @@
+{
+  "name": "Reldnahc Chandler Reviewer",
+  "description": "Independent review identity for Chandler Factory pull requests.",
+  "url": "https://github.com/Reldnahc/chandler-factory",
+  "public": false,
+  "default_permissions": {
+    "metadata": "read",
+    "contents": "read",
+    "pull_requests": "write"
+  },
+  "default_events": [],
+  "request_oauth_on_install": false
+}
