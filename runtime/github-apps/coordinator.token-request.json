@@ -1,0 +1,7 @@
+{
+  "repositories": ["chandler-factory"],
+  "permissions": {
+    "metadata": "read",
+    "issues": "write"
+  }
+}

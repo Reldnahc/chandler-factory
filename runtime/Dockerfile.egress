@@ -1,0 +1,6 @@
+FROM node:24.19.0-bookworm-slim
+RUN mkdir /proxy && chown node:node /proxy && chmod 0750 /proxy
+WORKDIR /opt/factory
+COPY egress-proxy.mjs ./egress-proxy.mjs
+USER node
+ENTRYPOINT ["node", "/opt/factory/egress-proxy.mjs"]

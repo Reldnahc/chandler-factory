@@ -1,0 +1,8 @@
+.local/
+node_modules/
+target/
+*.pem
+*.key
+.env
+.env.*
+!.env.example
