@@ -12,6 +12,12 @@ auth object over Docker stdin before the model starts. They cannot edit the
 deployment that the trusted host will invoke next. This does not retroactively
 isolate the desktop bootstrap session, which still has owner access.
 
+The trusted host manually dispatches each container and applies Project transitions.
+The isolated coordinator receives the relevant live Project view and returns bounded
+task packets or transition requests. It cannot invoke this host launcher or write the
+Project directly. Recheck the live Project before applying a transition; temporary task
+packets are not another authoritative backlog.
+
 Build the two images from the trusted deployment:
 
 ```powershell
@@ -102,3 +108,46 @@ It records JSON evidence beneath the
 specified directory. Passing it is evidence about mounts, local isolation, and
 credential fallback, not proof of distinct GitHub identities, GitHub permissions,
 live Codex execution, or the egress allowlist. Those require separate live trials.
+
+## Review and completion handoff
+
+The accepted main-branch gate requires a PR and two checks for its exact head:
+**Workflow checks** from GitHub Actions App **15368**, and **Independent review** from
+reviewer App **5067522**. Required check sources must be pinned to those Apps. The native
+required-approval count is zero because the reviewer retains Contents read access and
+its approval did not satisfy that native count. Ordinary reviews still provide the
+independent review evidence; zero native required approvals does not permit skipping
+review. Check live protection and actual trial evidence before asserting enforcement.
+
+After the host has prepared the proposed changes and PR, dispatch a fresh reviewer
+against the full PR head SHA. The reviewer inspects the result and records an ordinary
+GitHub PR review explicitly associated with that SHA, including assessed scope,
+acceptance criteria, verification evidence, and limitations. Inside the reviewer
+container, publish its check with:
+
+```sh
+node scripts/publish-review-check.mjs --pr N --revision SHA
+```
+
+Replace `N` with the PR number and `SHA` with its exact lowercase 40-character current
+head revision. The helper uses the reviewer's existing token; it does not mint or
+broaden credentials. Reviewer App 5067522 has Checks write but retains Contents read.
+The helper validates the recorded designated review and current head, then publishes
+the App's check. It does not assess the truth of the review's reasoning. Invalid,
+dismissed, stale, insufficient, or negative review evidence produces a failure for a
+valid current PR/head; other invalid inputs stop the operation.
+
+Immediately before merge, request a fresh run of this helper in the reviewer container
+for the unchanged head. Require exit code zero, the verified App result, success of
+both required checks, and current review evidence without unresolved requested changes.
+A new head requires another assessment and review. A later dismissal or changes-requested
+review on the same SHA does not automatically revoke an earlier check: there is no
+webhook or scheduler, and the refresh and merge are not atomic. If the refresh fails,
+do not proceed on the basis of an earlier success.
+
+The host performs the permitted integration and applies the Project's Done transition
+only after all acceptance criteria, review, evidence, and required repository changes
+are complete. The auditor is a separate observed-evidence check, not a restriction on
+the host's direct Project API authority. Keep the owner bootstrap session outside any
+claim about isolated-role permissions. This procedure describes the approved operation;
+positive live review and merge results must be recorded after actual execution.

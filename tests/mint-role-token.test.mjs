@@ -76,6 +76,35 @@ test('unknown config grants and reused identities are rejected', t => {
   assert.throws(() => validateConfig(f.config, f.role), /distinct/);
 });
 
+test('Checks write is restricted to reviewer without widening either other role', async t => {
+  assert.deepEqual(rolePermissions.implementation, { metadata: 'read', contents: 'write', pull_requests: 'write' });
+  assert.deepEqual(rolePermissions.coordinator, { metadata: 'read', issues: 'write' });
+  assert.deepEqual(rolePermissions.reviewer, { metadata: 'read', contents: 'read', pull_requests: 'write', checks: 'write' });
+  for (const role of ['implementation', 'coordinator']) {
+    const f = fixture(t, role);
+    f.data.app.permissions = { ...f.data.app.permissions, checks: 'write' };
+    await assert.rejects(mintRoleToken(f.options, f.dependencies), /permission grants/);
+    assert.equal(f.calls.some(call => call.method === 'POST'), false);
+  }
+});
+
+test('reviewer missing Checks write is rejected before minting', async t => {
+  for (const value of [undefined, 'read']) {
+    const f = fixture(t, 'reviewer');
+    f.data.installation.permissions = { metadata: 'read', contents: 'read', pull_requests: 'write', ...(value ? { checks: value } : {}) };
+    await assert.rejects(mintRoleToken(f.options, f.dependencies), /permission grants/);
+    assert.equal(f.calls.some(call => call.method === 'POST'), false);
+  }
+});
+
+test('reviewer token without the approved Checks grant is revoked', async t => {
+  const f = fixture(t, 'reviewer');
+  f.data.minted.permissions = { metadata: 'read', contents: 'read', pull_requests: 'write' };
+  await assert.rejects(mintRoleToken(f.options, f.dependencies), /permission grants.*Minted token revoked/);
+  assert.equal(f.calls.at(-1).method, 'DELETE');
+  assert.equal(existsSync(join(f.credentials, f.role, 'github-token')), false);
+});
+
 test('App and installation preflight rejects wrong identity, grants, owner and scope before POST', async t => {
   const mutations = [
     data => { data.app.id++; },

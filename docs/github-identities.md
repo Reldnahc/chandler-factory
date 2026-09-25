@@ -19,12 +19,12 @@ tokens. Do not authorize the Apps to act on the owner's behalf.
 | Container role | Proposed App name | Repository permissions |
 | --- | --- | --- |
 | implementation | Reldnahc Chandler Implementer | Metadata read, Contents write, Pull requests write |
-| reviewer | Reldnahc Chandler Reviewer | Metadata read, Contents read, Pull requests write |
+| reviewer | Reldnahc Chandler Reviewer | Metadata read, Contents read, Pull requests write, Checks write |
 | coordinator | Reldnahc Chandler Coordinator | Metadata read, Issues write |
 
 All unlisted repository, organization, and account permissions remain **No access**.
-In particular, none receives Administration, Workflows, Checks write, Commit
-statuses write, Secrets, or Projects. No App goes on a ruleset bypass list.
+In particular, none receives Administration, Workflows, Commit statuses write,
+Secrets, or Projects. Only the reviewer receives Checks write. No App goes on a ruleset bypass list.
 The public repository remains publicly readable independently of these grants.
 
 App installation requests are attributed to the App. Minting several tokens for
@@ -37,11 +37,44 @@ These grants are not an exact command allowlist. Pull requests write includes
 more than submitting reviews. The reviewer lacks the Contents write permission
 required by the documented REST merge endpoint; the implementer has that
 permission and can merge **when applicable branch rules permit it**. Required
-checks and independent approval must therefore be enforced on the target branch.
+verification and the independent reviewer check must therefore be enforced on
+the target branch.
 The implementer cannot update Actions workflow files using these grants.
 [Review permission](https://docs.github.com/en/rest/pulls/reviews#create-a-review-for-a-pull-request),
 [merge permission](https://docs.github.com/en/rest/pulls/pulls#merge-a-pull-request),
 [Git access and Workflows permission](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/choosing-permissions-for-a-github-app).
+
+## Reviewer check authority
+
+The approved review gate is the required **Independent review** check from
+reviewer App **5067522**, replacing the native approval-count requirement.
+Ordinary PR reviews remain durable review evidence. The reviewer publishes a
+check for the exact current PR head SHA only after inspecting that revision and
+recording its review and evidence. New commits require a new review check.
+See the [review-gate decision](decisions/0003-review-check-gate.md) and
+[publisher](../scripts/publish-review-check.mjs); live application and enforcement
+need their own recorded evidence.
+
+Checks write permits creating and updating check runs; it is broader than the
+single name Independent review. Branch protection must pin this check to App
+5067522 and separately pin Workflow checks to GitHub Actions App 15368. A matching
+name from another source must not satisfy either requirement. These source and
+commit requirements do not mechanically prove the quality of the review itself.
+[Checks permission and commit association](https://docs.github.com/en/rest/checks/runs#create-a-check-run),
+[required check sources](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches#require-status-checks-before-merging).
+
+Use `success` only for an approved result and a blocking state for unfinished or
+rejected work: GitHub also treats `neutral` and `skipped` as passing. Preserve the
+PR and reviewed revision in evidence because a check belongs to a commit, not
+exclusively to one PR. Replacing native approvals does not inherit their stale
+review dismissal behavior.
+[Required check behavior](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks).
+
+To upgrade the existing reviewer registration, add only **Checks: Read and write**,
+approve that change on its installation, revoke its old installation token, and
+mint a new one with the updated helper. The helper rejects the old missing grant
+and any unexpected additional grant. Implementation and coordinator permissions
+remain unchanged; neither receives Checks write or the reviewer's token.
 
 ## Register without a callback service
 
@@ -58,7 +91,7 @@ Use the native registration forms instead; these links preselect the same names,
 homepage, and permission grants:
 
 - [Register implementation App](https://github.com/settings/apps/new?name=Reldnahc%20Chandler%20Implementer&url=https%3A%2F%2Fgithub.com%2FReldnahc%2Fchandler-factory&public=false&webhook_active=false&request_oauth_on_install=false&contents=write&pull_requests=write)
-- [Register reviewer App](https://github.com/settings/apps/new?name=Reldnahc%20Chandler%20Reviewer&url=https%3A%2F%2Fgithub.com%2FReldnahc%2Fchandler-factory&public=false&webhook_active=false&request_oauth_on_install=false&contents=read&pull_requests=write)
+- [Register reviewer App](https://github.com/settings/apps/new?name=Reldnahc%20Chandler%20Reviewer&url=https%3A%2F%2Fgithub.com%2FReldnahc%2Fchandler-factory&public=false&webhook_active=false&request_oauth_on_install=false&contents=read&pull_requests=write&checks=write)
 - [Register coordinator App](https://github.com/settings/apps/new?name=Reldnahc%20Chandler%20Coordinator&url=https%3A%2F%2Fgithub.com%2FReldnahc%2Fchandler-factory&public=false&webhook_active=false&request_oauth_on_install=false&issues=write)
 
 For each form, verify the table above, disable webhook delivery, leave OAuth
@@ -146,6 +179,13 @@ Place only this role's `codex-auth.json` beside `github-token`, then follow the
 ```powershell
 node scripts/run-role.mjs --role implementation --checkout C:\path\repo --revision FULL_40_CHARACTER_SHA --task C:\path\task.md --credentials C:\private\factory-credentials --runs C:\private\factory-runs
 ```
+
+The trusted launcher reads only that role's two credential files and delivers a
+bounded credential packet over Docker stdin before the model starts. It does
+not bind-mount the host credentials directory or put secrets in Docker arguments
+or environment settings. The entrypoint puts the role's authentication in private
+tmpfs and supplies `GH_TOKEN` to its child process. Actual isolation evidence is
+separate from these transport instructions.
 
 Repeat token minting for another role only with its own registered App. At run
 completion, invoke the matching revoke command. It reads only the role token,

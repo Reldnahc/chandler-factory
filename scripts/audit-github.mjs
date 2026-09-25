@@ -66,7 +66,7 @@ export function normalizePullRequest(pr) {
     latest.set(login(review.author.login), review);
   }
   const blocked = [...latest.values()].some(review => review.state === 'CHANGES_REQUESTED')
-    || ['CHANGES_REQUESTED', 'REVIEW_REQUIRED'].includes(pr.reviewDecision);
+    || pr.reviewDecision === 'CHANGES_REQUESTED';
   const approval = !blocked && [...latest.values()].find(review => review.state === 'APPROVED'
     && review.commit?.oid === pr.headRefOid && login(review.author.login) !== login(pr.author?.login));
   // gh pr view reads every rollup page from commits(last:1), i.e. this PR's current head.

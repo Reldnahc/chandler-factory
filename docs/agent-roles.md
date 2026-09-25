@@ -25,12 +25,25 @@ entry point locates guidance; it should not become a duplicate of every procedur
 Workers load their applicable brief and task references, not all three briefs. The
 coordinator retains concise outcomes and evidence links rather than worker transcripts.
 
+The current trusted host manually dispatches containers and applies Project state
+changes. The isolated coordinator returns task packets and transition requests; it
+cannot invoke the host launcher or write the Project directly. The host provides the
+relevant live Project view for selection and rechecks it before applying a transition.
+This handoff does not add a scheduler or a second backlog.
+
 ## Required authority boundaries
 
 Implementation and review should use distinct automation identities. The coordinator
 should have only its required management authority. Role processes must not be able to
 read another role's credentials or fall back to owner authority. Different tokens for
 the same GitHub identity do not establish independent author/reviewer identities.
+
+The reviewer retains Contents read access and has Checks write authority for publishing
+the required **Independent review** check as App **5067522**, after recording its review
+of the exact SHA. **Workflow checks** must come from GitHub Actions App **15368**. The
+ordinary review remains evidence even though the native required-approval count is
+zero. See the [completion procedure](workflow.md#done) for the required pre-merge
+refresh and its limitation after same-SHA review changes.
 
 The trusted launcher runs on the host, outside the role containers' authority. The
 containers must not receive the owner's home directory, Docker socket, other roles'

@@ -48,6 +48,7 @@ test('later review changes revoke approval while comments do not', () => {
   }
   assert.deepEqual(auditPr(pr({ reviews: [review(), review({ state: 'COMMENTED', submittedAt: '2026-09-24T12:30:00Z' })] })), []);
   assert.ok(auditPr(pr({ reviewDecision: 'CHANGES_REQUESTED' })).length > 0);
+  assert.deepEqual(auditPr(pr({ reviewDecision: 'REVIEW_REQUIRED' })), []);
   assert.throws(() => normalizePullRequest(pr({ reviews: [review(), review({ state: 'CHANGES_REQUESTED' })] })), /Ambiguous/);
 });
 test('adapter resolves dependency closure reasons and rejects partial native connections', () => {

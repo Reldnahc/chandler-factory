@@ -25,3 +25,11 @@ backlog.
 Different agent roles do not, by themselves, provide isolated permissions. Until
 credential isolation and required completion controls are demonstrated, the workflow
 must not be described as enforcing those boundaries.
+
+The [role runtime](runtime/README.md) uses manually dispatched containers. The trusted
+host currently applies Project transitions; the isolated coordinator cannot launch
+host processes or write the Project directly. The accepted merge gate requires
+Workflow checks from GitHub Actions and Independent review from the designated
+reviewer App, with a fresh review-check publication immediately before merge. Read
+[the completion procedure](docs/workflow.md#done) and
+[actual verification evidence](docs/verification.md) for its limits and demonstrated results.

@@ -31,8 +31,13 @@ is Ready, the agent may perform routine work autonomously, including routine cor
 identified during review. Completion requires verification and a separate review pass;
 Chandler need not accept every routine story individually.
 
-The coordinator maintains the board and selects Ready work by priority when asked to
-continue. The priority values, in order, are **Showstopper, High, Medium, Low**. Medium
+The coordinator proposes board transitions and selects Ready work by priority when
+asked to continue. The trusted host currently reads the live Project, supplies the
+relevant view to the coordinator, and manually applies transitions. The isolated
+coordinator has no Project write authority and cannot invoke the host launcher. It
+can maintain issue records using its own limited authority. There is no scheduler.
+
+The priority values, in order, are **Showstopper, High, Medium, Low**. Medium
 is the ordinary default. Showstopper is rare and reserved for work whose resolution is
 needed to unblock significant progress. Being Blocked does not automatically confer
 Showstopper priority. There is no separate ranking field for ties; choose a sensible
@@ -96,6 +101,36 @@ For repository work, merge the reviewed changes after required checks pass, then
 the issue as **completed** and set the Project state to Done. For work requiring no
 repository changes, the result and review still need durable evidence linked from the
 issue. A closed issue alone is not proof that it satisfies Done.
+
+The accepted integration gate requires a PR and two checks on the exact PR head:
+**Workflow checks** from GitHub Actions App **15368**, and **Independent review** from
+reviewer App **5067522**. Pin both required check sources to those Apps. The native
+required-approval count is zero: the reviewer retains Contents read access, and its
+ordinary approval did not satisfy GitHub's native approval-count requirement. The
+reviewer's ordinary PR review remains required evidence for the Independent review
+check; zero native required approvals does not waive independent review.
+
+The reviewer first submits an ordinary GitHub review identifying the exact commit,
+assessment against acceptance criteria, verification evidence, and limitations. It then
+runs `node scripts/publish-review-check.mjs --pr N --revision SHA` inside its reviewer
+container, replacing `N` and `SHA` with the PR number and full lowercase head SHA.
+This publishes the designated App's result after checking the recorded review and
+current head. The helper does not determine whether the review's reasoning is correct.
+
+Immediately before merging, the trusted host must request another reviewer-container
+run of the helper against the unchanged head and require exit code zero plus the
+verified App result. Inspect current reviews and both required checks. Later dismissal
+or a changes-requested review on the same SHA does not automatically revoke a previously
+successful check: there is no webhook or scheduler. A failed refresh, changed head,
+dismissed approval, or unresolved requested changes prevents completion under this
+procedure. New commits require new review and verification evidence. The refresh and
+merge are not atomic. Confirm live protection and recorded trial results before
+claiming the gate is enforced.
+
+After integration, the host applies the reviewed Done transition to the Project. The
+host's owner bootstrap access remains outside the container boundary. The completion
+auditor is an additional check; it cannot prevent a host with Project write authority
+from bypassing it.
 
 A research story can finish with a rejected approach or an inconclusive answer if it
 fulfills the agreed investigation and evidence requirements. Do not change acceptance

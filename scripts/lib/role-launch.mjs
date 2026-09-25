@@ -1,6 +1,6 @@
 // Trusted host launcher helpers. None of these paths are shared wholesale with a role.
 import { execFileSync } from 'node:child_process';
-import { lstatSync, realpathSync, mkdirSync, writeFileSync, readFileSync, existsSync, readdirSync } from 'node:fs';
+import { lstatSync, realpathSync, mkdirSync, writeFileSync, existsSync, readdirSync, openSync, fstatSync, readSync, closeSync } from 'node:fs';
 import { resolve, relative, isAbsolute, parse, dirname, join } from 'node:path';
 
 export const ROLES = ['coordinator', 'implementation', 'reviewer'];
@@ -89,17 +89,46 @@ export function credentials(directoryInput, role, checkout, runDirectory) {
   }
   const token = plainPath(join(directory, role, 'github-token'));
   const auth = plainPath(join(directory, role, 'codex-auth.json'));
-  if (!readFileSync(token, 'utf8').trim()) throw new Error('Role GitHub token is empty.');
-  let contents;
-  try { contents = JSON.parse(readFileSync(auth, 'utf8')); } catch { throw new Error('Codex auth is not valid JSON.'); }
-  if (!contents || typeof contents !== 'object' || Array.isArray(contents)) throw new Error('Codex auth must be a JSON object.');
+  readCredentialFiles({ token, auth });
   return { token, auth };
 }
 
-export function credentialPayload({ token, auth }) {
-  const githubToken = readFileSync(token, 'utf8').trim();
+function readBoundedSecret(path, limit, label) {
+  let file;
+  try {
+    file = openSync(path, 'r');
+    const stat = fstatSync(file);
+    if (!stat.isFile()) throw new Error(`Role ${label} must be a regular file.`);
+    if (stat.size > limit) throw new Error(`Role ${label} exceeds ${limit} bytes.`);
+    // Bound the actual read too, including a file that grows after fstat.
+    const buffer = Buffer.alloc(limit + 1);
+    let bytes = 0;
+    while (bytes < buffer.length) {
+      const count = readSync(file, buffer, bytes, buffer.length - bytes, null);
+      if (count === 0) break;
+      bytes += count;
+    }
+    if (bytes > limit) throw new Error(`Role ${label} exceeds ${limit} bytes.`);
+    return buffer.toString('utf8', 0, bytes);
+  } catch (error) {
+    // Do not expose filesystem/parser diagnostics that could quote credential data.
+    if (error.message === `Role ${label} exceeds ${limit} bytes.` || error.message === `Role ${label} must be a regular file.`) throw error;
+    throw new Error(`Unable to read role ${label}.`);
+  } finally { if (file !== undefined) closeSync(file); }
+}
+
+function readCredentialFiles({ token, auth }) {
+  const githubToken = readBoundedSecret(token, 4096, 'GitHub token').trim();
+  const authText = readBoundedSecret(auth, 65536, 'Codex auth');
+  if (!githubToken) throw new Error('Role GitHub token is empty.');
   let codexAuth;
-  try { codexAuth = JSON.parse(readFileSync(auth, 'utf8')); } catch { throw new Error('Codex auth is not valid JSON.'); }
+  try { codexAuth = JSON.parse(authText); } catch { throw new Error('Codex auth is not valid JSON.'); }
+  if (!codexAuth || typeof codexAuth !== 'object' || Array.isArray(codexAuth)) throw new Error('Codex auth must be a JSON object.');
+  return { githubToken, codexAuth };
+}
+
+export function credentialPayload(files) {
+  const { githubToken, codexAuth } = readCredentialFiles(files);
   const payload = Buffer.from(JSON.stringify({ githubToken, codexAuth }));
   if (!githubToken || !codexAuth || typeof codexAuth !== 'object' || Array.isArray(codexAuth) || payload.length > 65536) {
     throw new Error('Invalid or oversized role credential payload.');

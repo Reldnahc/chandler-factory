@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { snapshot, dockerArguments, credentials, credentialPayload, contained } from '../scripts/lib/role-launch.mjs';
 
 function fixture(t) {
@@ -108,4 +108,35 @@ test('credentials are chosen from one role and cannot be within the checkout', t
   mkdirSync(join(f.checkout, 'secrets'));
   assert.throws(() => credentials(join(f.checkout, 'secrets'), 'reviewer', f.checkout, join(f.root, 'run')), /outside the checkout/);
   assert.throws(() => credentials(root, 'coordinator', f.checkout, join(f.root, 'run')), /ENOENT/);
+});
+
+test('malformed auth never exposes its contents in host errors or launcher stderr', t => {
+  const f = fixture(t);
+  const root = join(f.root, 'credentials'); mkdirSync(root); mkdirSync(join(root, 'implementation'));
+  const token = join(root, 'implementation', 'github-token'); const auth = join(root, 'implementation', 'codex-auth.json');
+  const sentinel = 'PRIVATE_AUTH_SENTINEL_MUST_NEVER_APPEAR';
+  writeFileSync(token, 'synthetic-token'); writeFileSync(auth, `${sentinel} is invalid JSON`);
+  for (const action of [() => credentials(root, 'implementation', f.checkout, join(f.root, 'run')),
+    () => credentialPayload({ token, auth })]) {
+    assert.throws(action, error => error.message === 'Codex auth is not valid JSON.' && !String(error).includes(sentinel));
+  }
+  const task = join(f.root, 'task.md'); writeFileSync(task, 'Fixture only.');
+  const runs = join(f.root, 'runs'); mkdirSync(runs);
+  const result = spawnSync(process.execPath, [resolve(import.meta.dirname, '../scripts/run-role.mjs'), '--role', 'implementation',
+    '--checkout', f.checkout, '--revision', 'a'.repeat(40), '--task', task, '--credentials', root, '--runs', runs],
+    { encoding: 'utf8', windowsHide: true });
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /^Codex auth is not valid JSON\.\s*$/);
+  assert.equal(`${result.stdout}${result.stderr}`.includes(sentinel), false);
+});
+
+test('oversized credential files are rejected before JSON parsing or serialization', t => {
+  const f = fixture(t);
+  const token = join(f.root, 'token'); const auth = join(f.root, 'auth');
+  writeFileSync(token, 'synthetic'); writeFileSync(auth, 'X'.repeat(65537));
+  assert.throws(() => credentialPayload({ token, auth }), /^Error: Role Codex auth exceeds 65536 bytes\.$/);
+  writeFileSync(auth, '{}'); writeFileSync(token, 'X'.repeat(4097));
+  assert.throws(() => credentialPayload({ token, auth }), /^Error: Role GitHub token exceeds 4096 bytes\.$/);
+  writeFileSync(token, '"'.repeat(4096)); writeFileSync(auth, JSON.stringify({ fixture: 'X'.repeat(60000) }));
+  assert.throws(() => credentialPayload({ token, auth }), /oversized role credential payload/);
 });

@@ -19,6 +19,12 @@ Self-review does not replace the separate reviewer. Do not approve your own resu
 the independent reviewer or claim completion before required review and integration.
 Routine review corrections stay within the accepted story's scope.
 
+Return the result to the trusted host for review and integration. The host manually
+dispatches the separate reviewer and applies Project transitions. Do not publish the
+reviewer's Independent review check or treat a zero native required-approval count as
+permission to omit review: integration requires the reviewer App's current-head check
+and Workflow checks from GitHub Actions, as specified in [workflow](../workflow.md#done).
+
 Use only the supplied implementation authority. It must not satisfy independent review
 as the same identity, bypass required integration checks, reach owner or reviewer
 credentials, or invoke the trusted host launcher. The accepted container arrangement

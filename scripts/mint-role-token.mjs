@@ -9,7 +9,7 @@ const owner = 'Reldnahc';
 const repository = `${owner}/chandler-factory`;
 export const rolePermissions = Object.freeze({
   implementation: Object.freeze({ metadata: 'read', contents: 'write', pull_requests: 'write' }),
-  reviewer: Object.freeze({ metadata: 'read', contents: 'read', pull_requests: 'write' }),
+  reviewer: Object.freeze({ metadata: 'read', contents: 'read', pull_requests: 'write', checks: 'write' }),
   coordinator: Object.freeze({ metadata: 'read', issues: 'write' }),
 });
 

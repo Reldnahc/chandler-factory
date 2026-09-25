@@ -26,6 +26,8 @@ label without the underlying observations is insufficient.
 | Reject incomplete completion | Missing checks or review, stale evidence, and unmet prerequisites prevent the supported completion path from claiming Done. Distinguish helper validation from restrictions on direct API access. |
 | Distinct role identities | Implementation and review actions are attributed to different intended GitHub identities; each process fails to obtain other roles' or owner credentials. |
 | Protect integration | Safe negative trials demonstrate that the actual implementation and coordinator credentials cannot merge around required checks or independent review. |
+| Verify the review gate | Read live protection to confirm PRs remain required, native required approvals are zero, Workflow checks is pinned to App 15368, and Independent review is pinned to App 5067522. Test that a missing check, a stale SHA, or a matching check name from another App cannot satisfy the gate. |
+| Refresh review before merge | A reviewer-container helper run immediately before merge verifies the current head and latest designated review, exits zero only for a successful check, and verifies the returned App. A same-SHA dismissal or changes-requested decision fails the refresh. Record that earlier success is not revoked automatically and that refresh plus merge is not atomic. |
 | Protect records | Permission inspection and safe, denied trials establish that routine roles cannot delete permanent records. Do not test destructive permissions against real history. |
 | Fresh agent recovery | A fresh worker receives a bounded assignment and can find scope, prerequisites, applicable decisions, and verification requirements without a full conversation transcript. |
 | Separate review | A fresh reviewer inspects actual changes and evidence, identifies a meaningful planted omission in a safe trial, and ties its decision to the reviewed revision. |
@@ -48,6 +50,26 @@ script checks evidence. It does not prove that the same credential cannot bypass
 script and write Done directly through the Project API. Record such limitations
 explicitly and do not call completion enforcement solved while they remain.
 
+The current operating arrangement deliberately leaves dispatch and Project transitions
+with the trusted host. The isolated coordinator returns requests; it cannot invoke the
+host launcher or write the Project directly. The desktop owner bootstrap session is
+outside that boundary. Its actions are not evidence of routine-role restrictions.
+
+The accepted merge configuration uses required checks rather than native approval
+count: Workflow checks from GitHub Actions App 15368 and Independent review from reviewer
+App 5067522, with PRs still required. The reviewer has Checks write and Contents read.
+It must first record an ordinary review with evidence tied to the current SHA, then
+publish the check. The helper tests identity and evidence structure, not whether the
+reviewer's judgment is sound. A reviewer holding Checks write can call the API directly;
+its trusted review authority remains a real boundary of this design.
+
+There is no automatic revocation after a later same-SHA review change. The trusted host
+requests a fresh helper run inside the reviewer container immediately before merge and
+checks current reviews and required checks. A successful earlier check alone does not
+establish current approval. New heads require new evidence; refresh and merge are not
+an atomic operation. The approved configuration and these operating rules are not proof
+that the positive live merge trial has passed.
+
 ## Running the initial audits
 
 With Node 24, run `node --test tests/*.test.mjs` and
@@ -59,9 +81,13 @@ ignored by Git and must never become a second backlog.
 The initial live auditor recognizes repository completion evidence only when the
 issue body contains a plain line `Completion PR: <full PR URL>` for each required PR.
 It checks merged state, current-head independent approval, completed prerequisites,
-and success of every observed check. It does not discover the required-check policy,
-prove acceptance criteria were fulfilled, or establish that the reviewer is a trusted
-role. Work with durable issue-only results is allowed by policy but is unsupported by
+and success of every observed check. Native REVIEW_REQUIRED alone does not invalidate
+an otherwise current independent approval; CHANGES_REQUESTED does. It does not discover
+the required-check policy, pin names or App IDs, prove acceptance criteria were fulfilled,
+or establish that the reviewer is the designated trusted App. Ordinary human approvals
+can satisfy its independent-review evidence rule. Branch protection and the review
+publisher therefore require separate verification. Work with durable issue-only results
+is allowed by policy but is unsupported by
 this first auditor; it reports "cannot verify" rather than assuming success. Direct
 Project writes are outside its control. These limits require separate verification.
 
