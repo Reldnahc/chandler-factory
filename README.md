@@ -13,6 +13,7 @@ foundation work.
 
 - [Project intent](docs/project-intent.md): premise, engineering priorities, and open design decisions.
 - [Workflow](docs/workflow.md): work selection, states, ownership, and completion policy.
+- [Operator quickstart](docs/operator-quickstart.md): one trusted-host implementation, review, and integration cycle.
 - [Agent roles](docs/agent-roles.md): coordinator, implementation, and independent review responsibilities.
 - [Accepted decisions](docs/decisions/0001-workflow-foundation.md): the reasons for this workflow and its limits.
 - [Verification](docs/verification.md): evidence requirements and what remains to be demonstrated.
