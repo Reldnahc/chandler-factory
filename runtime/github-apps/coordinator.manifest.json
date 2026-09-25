@@ -1,0 +1,12 @@
+{
+  "name": "Reldnahc Chandler Coordinator",
+  "description": "Issue management identity for Chandler Factory; no Project or administration grant.",
+  "url": "https://github.com/Reldnahc/chandler-factory",
+  "public": false,
+  "default_permissions": {
+    "metadata": "read",
+    "issues": "write"
+  },
+  "default_events": [],
+  "request_oauth_on_install": false
+}
