@@ -173,12 +173,24 @@ that fails validation is revoked on a best-effort basis, with an explicit failur
 if revocation cannot be confirmed. Local tests use generated fixture keys and
 fake API responses; they do not verify live GitHub grants.
 
-Place only this role's `codex-auth.json` beside `github-token`, then follow the
-[runtime launcher](../runtime/README.md), which takes the parent directory:
+Place only this role's `codex-auth.json` beside `github-token` in the protected
+credential directory configured by the trusted host. Start a managed worker with
+`factory_start`:
 
-```powershell
-node scripts/run-role.mjs --role implementation --checkout C:\path\repo --revision FULL_40_CHARACTER_SHA --task C:\path\task.md --credentials C:\private\factory-credentials --runs C:\private\factory-runs
+```json
+{
+  "requestId": "issue-10-implementation",
+  "role": "implementation",
+  "revision": "FULL_40_CHARACTER_LOWERCASE_COMMIT_SHA",
+  "task": "Update the obsolete launch example in docs/github-identities.md."
+}
 ```
+
+Replace the revision placeholder with the exact source commit. Role selection does
+not choose model or reasoning effort; the trusted runtime fixes those settings.
+See the [launcher interface](launcher-interface.md) for the full lifecycle,
+including observation, questions and answers, follow-up messages, interruption,
+and closure, and the [runtime reference](../runtime/README.md) for host setup.
 
 The trusted launcher reads only that role's two credential files and delivers a
 bounded credential packet over Docker stdin before the model starts. It does
