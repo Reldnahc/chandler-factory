@@ -99,6 +99,9 @@ Project writes are outside its control. These limits require separate verificati
 - [Container and App setup evidence](evidence/2026-09-24-containers.md): actual
   synthetic boundary and live egress tests, the proxy's demonstrated limitation,
   and verified App/token scope provisioning.
+- [Independent review gate trial](evidence/2026-09-24-review-gate.md): missing,
+  failed, wrong-role, and stale-commit checks; separate reviewer approval and
+  successful protected integration by the implementation App.
 
 Add further evidence only after execution, distinguishing local validation, live
 GitHub behavior, agent behavior, and permission enforcement.

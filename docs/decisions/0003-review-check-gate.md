@@ -1,7 +1,8 @@
 # 0003: Reviewer App check as the independent review gate
 
-Status: accepted by Chandler on 2026-09-24. Reviewer Checks write is installed;
-the replacement gate is under live verification on the retained trial branch.
+Status: accepted by Chandler on 2026-09-24. Reviewer Checks write is installed.
+The replacement gate passed the [retained live trial](../evidence/2026-09-24-review-gate.md)
+and is installed on main.
 
 ## Observed problem
 

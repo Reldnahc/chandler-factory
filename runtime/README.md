@@ -99,7 +99,9 @@ Docker enforces the boundary. This is the documented
 It never relaxes Docker capabilities, adds namespace privileges, exposes host
 networking, or changes the role's read-only mounts. This flag must not be reused
 for a host Codex process. The network diagnostic records the nested sandbox
-failure separately from egress results; live authentication still needs a trial.
+failure separately from egress results; live authentication requires separate
+evidence, recorded in the [container trials](../docs/evidence/2026-09-24-containers.md)
+and [review-gate trial](../docs/evidence/2026-09-24-review-gate.md).
 
 The offline canary suite uses synthetic stdin credentials and runs each role,
 checking 10 boundaries plus a written action artifact. Own auth is intentionally

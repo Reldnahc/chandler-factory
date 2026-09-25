@@ -43,7 +43,48 @@ fully paginated latest review evidence, current head/base, and returned App/chec
 identity. Local tests cover changed heads, wrong identities, missing/stale/dismissed
 reviews, changes requested, malformed review evidence, pagination, and refresh failure.
 
-## Other observed role behavior
+## Changed revision and successful integration
+
+The next commit, `2426a6c45a37a11637ba3ac20cf0d97c60b7db6e`, passed all three
+observed CI jobs. It had no Independent review check. An implementation-App merge
+attempt returned HTTP 405 specifically because that check was expected: the old
+commit's success did not authorize the new commit.
+
+A fresh isolated reviewer then verified all 57 snapshot files against GitHub,
+ran all 74 tests and the repository check, and ran the read-only six-issue live
+audit successfully. It found no material defects and submitted exact-commit
+approvals for [PR #7](https://github.com/Reldnahc/chandler-factory/pull/7#pullrequestreview-5312150828)
+and [PR #8](https://github.com/Reldnahc/chandler-factory/pull/8#pullrequestreview-5312150983).
+Both helper invocations exited zero and verified success from App 5067522.
+
+Immediately after that fresh review/check, a trusted-host preflight verified the
+current head, target, protection source IDs, latest designated approval, successful
+required checks, and a recent check linked to that PR's review. Using only the
+implementation installation token, the host called `PUT /repos/Reldnahc/chandler-factory/pulls/8/merge`
+with the exact head SHA. GitHub merged it at 2026-09-25 01:16:35 UTC, producing
+commit `7c846420ee184046ce89d0472e96b02de91517f5`. No administrative bypass was used.
+This proves the scoped implementation identity can complete the approved positive
+path as well as being denied the negative paths. The same protection payload was
+then installed on main and read back with both exact App sources and all retained
+protections.
+
+Each of the three verified App identities also attempted to PUT the identical
+current protection payload to the trial branch. All received HTTP 403, resource
+not accessible by integration. Owner reads before each attempt and afterward
+confirmed the exact payload parity, required App sources, and unchanged settings.
+Using the existing payload kept this negative test safe even if an unexpected
+permission had allowed it. Routine role tokens cannot edit these rules.
+
+The final role image, containing the updated reviewer instructions, is
+`sha256:0a618ed506840218786ea9918fe493e3334da15f1380f2e92c3815e0fc4c9310`.
+The proxy remains
+`sha256:e314adee44d9bd8788215b0e08af94eb759040b688b23a1a93b480aea0edc9ac`.
+At 01:15 UTC, the new image passed 30/30 synthetic isolation checks and 18/18 live
+egress checks using `node scripts/test-isolation.mjs .local` and
+`node scripts/test-egress.mjs .local`. These probes used synthetic credentials;
+the reviewer run separately demonstrated actual authenticated model execution.
+
+## Coordinator behavior
 
 A fresh coordinator container identified itself as `reldnahc-chandler-coordinator[bot]`
 and posted its authorized [verification comment on retained issue #6](https://github.com/Reldnahc/chandler-factory/issues/6#issuecomment-5824798320).
