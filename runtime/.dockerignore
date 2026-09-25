@@ -1,0 +1,10 @@
+*
+!Dockerfile
+!entrypoint.mjs
+!probe.mjs
+!network-probe.mjs
+!proxy-relay.mjs
+!roles/
+!roles/**
+!egress-proxy.mjs
+!Dockerfile.egress

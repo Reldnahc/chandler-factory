@@ -1,9 +1,12 @@
 # GitHub identities for isolated roles
 
-This is a reviewable registration and token-provisioning specification for
-`Reldnahc/chandler-factory`. The files do not create Apps, grant access, generate
-keys, or demonstrate a live permission boundary. The three registrations and
-their isolation checks remain necessary before claiming enforcement. See
+This is the registration and token-provisioning procedure for
+`Reldnahc/chandler-factory`. Registration files do not grant access by themselves;
+the host-only mint command exchanges an existing App key for a scoped token.
+Registration and isolation checks are both necessary before claiming enforcement.
+The initial registrations and token scopes are recorded in
+[setup evidence](evidence/2026-09-24-containers.md); runtime and operation-denial
+claims require their own observed results. See
 [agent roles](agent-roles.md) for responsibilities and [verification](verification.md)
 for evidence requirements.
 
@@ -78,42 +81,86 @@ not need an App private key or client secret.
 
 ## Mint one short-lived role token on the trusted host
 
-The trusted operator performs this exchange for the selected role immediately
-before launch. This is not a worker command or a background renewal service.
+The trusted operator invokes a reviewed deployment of
+[mint-role-token.mjs](../scripts/mint-role-token.mjs) immediately before launch.
+Do not execute a task's modified copy of this helper. It is not a worker command
+or a background renewal service. The helper uses Node's built-in crypto and fetch;
+it neither reads owner `gh` credentials nor accepts an arbitrary API URL.
 
-1. Select the independently registered App and its matching installation ID.
-   Check that the installation belongs to `Reldnahc` and selects this repository.
-2. Use its host-only PEM to sign an RS256 JWT. Set `iss` to the App client ID
-   (App ID is also supported), `iat` to current UTC minus 60 seconds, and `exp`
-   to no later than current UTC plus ten minutes. Keep the JWT in host memory;
-   do not print it. GitHub documents language-specific examples, including
-   PowerShell, but their example token-printing step should be omitted here.
-   [JWT construction](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-a-json-web-token-jwt-for-a-github-app).
-3. Send `POST https://api.github.com/app/installations/INSTALLATION_ID/access_tokens`
-   with `Authorization: Bearer <JWT>`, `Accept: application/vnd.github+json`, and
-   `X-GitHub-Api-Version: 2026-03-10`. Use the selected role's reviewed request body:
-   [implementation](../runtime/github-apps/implementation.token-request.json),
-   [reviewer](../runtime/github-apps/reviewer.token-request.json), or
-   [coordinator](../runtime/github-apps/coordinator.token-request.json).
-4. Check the response's repository selection, permissions, and `expires_at`.
-   Reject unexpected grants. Write only `token` to a new host-only token file
-   outside the checkout and output directory. Do not write the complete response
-   or log the token. Treat its format and length as opaque.
-5. Give that single file to the matching isolated launch using
-   `--role implementation|reviewer|coordinator --github-token-file <absolute-path>`.
-   The launcher must provide no other role token, host `gh` configuration,
-   keyring, SSH agent, owner credential, or Docker socket. Confirm the actual
-   identity before any remote write. A fresh token does not itself prove these
-   runtime properties.
-6. At run completion, revoke the installation token using
-   `DELETE https://api.github.com/installation/token`, then remove its host file.
-   If revocation cannot be confirmed, retain that fact in the nonsecret run
-   evidence; tokens expire after one hour. Never extend a run by giving it the
-   App's signing key.
+Keep a JSON configuration outside the deployment/checkout and the credentials
+directory. The only top-level key is `roles`; each configured role has exactly
+the following fields. Replace these example IDs, slug, and PEM path with the
+values recorded during registration. Add the `reviewer` and `coordinator` entries
+using the same structure and their own distinct identities.
 
+```json
+{
+  "roles": {
+    "implementation": {
+      "appId": 123,
+      "clientId": "IvEXAMPLE",
+      "installationId": 456,
+      "privateKeyFile": "C:\\private\\factory-app-keys\\implementation.pem",
+      "slug": "actual-implementation-app-slug"
+    }
+  }
+}
+```
+
+Create an existing dedicated credentials directory outside the checkout and run
+outputs. Protect it and the key/config locations with host filesystem permissions
+(including Windows ACLs). Role processes must not have host access to them. The
+helper rejects relative, repository-local, linked, or symlink/junction paths;
+keys and host configuration cannot reside inside the credentials directory.
+POSIX file modes do not establish a Windows ACL boundary.
+
+```powershell
+node scripts/mint-role-token.mjs --config C:\private\factory-apps.json --role implementation --credentials C:\private\factory-credentials
+```
+
+The helper signs a short-lived RS256 JWT in memory, checks the authenticated App
+ID/client ID/slug/owner and exact permission map, then checks the installation and
+its association with this repository. It requires selected-repository mode.
+The JWT preflight does not enumerate all selected installation repositories.
+It requests only `chandler-factory` with the role's frozen permission allowlist,
+validates the returned grants/expiry/repository, and separately enumerates the
+minted token's repositories to require exactly one. The checked-in
+[implementation](../runtime/github-apps/implementation.token-request.json),
+[reviewer](../runtime/github-apps/reviewer.token-request.json), and
+[coordinator](../runtime/github-apps/coordinator.token-request.json) request bodies
+document those grants; the helper does not load editable permission overrides.
+[JWT construction](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-a-json-web-token-jwt-for-a-github-app),
+[App/installation validation](https://docs.github.com/en/rest/apps/apps#get-the-authenticated-app).
+
+Only the installation token is written to
+`C:\private\factory-credentials\implementation\github-token`. Existing token
+files are rejected. Standard output contains only role/App/bot metadata, repository,
+permissions, and expiration; failures suppress upstream response text. A token
+that fails validation is revoked on a best-effort basis, with an explicit failure
+if revocation cannot be confirmed. Local tests use generated fixture keys and
+fake API responses; they do not verify live GitHub grants.
+
+Place only this role's `codex-auth.json` beside `github-token`, then follow the
+[runtime launcher](../runtime/README.md), which takes the parent directory:
+
+```powershell
+node scripts/run-role.mjs --role implementation --checkout C:\path\repo --revision FULL_40_CHARACTER_SHA --task C:\path\task.md --credentials C:\private\factory-credentials --runs C:\private\factory-runs
+```
+
+Repeat token minting for another role only with its own registered App. At run
+completion, invoke the matching revoke command. It reads only the role token,
+calls `DELETE https://api.github.com/installation/token`, and removes the file
+only after GitHub confirms revocation. It needs no App key or host configuration.
+
+```powershell
+node scripts/mint-role-token.mjs --revoke --role implementation --credentials C:\private\factory-credentials
+```
+
+If revocation cannot be confirmed, retain that fact in run evidence; the file is
+retained and tokens expire after one hour. Never extend a run by giving it an App
+signing key. The helper does not implement renewal or automatic run cleanup.
 Installation tokens can narrow the App's repositories and permissions but cannot
-expand them. Do not execute a changed request body merely because an agent edited
-the repository; verify it against the role grant registered by the trusted host.
+expand them.
 [Token exchange and scope](https://docs.github.com/en/rest/apps/apps#create-an-installation-access-token-for-an-app),
 [token revocation](https://docs.github.com/en/rest/apps/installations#revoke-an-installation-access-token).
 

@@ -70,6 +70,9 @@ Project writes are outside its control. These limits require separate verificati
 - [Live lifecycle trial](evidence/2026-09-24-lifecycle.md): native relationships,
   blocker history, active stages, cancellation, revival, and an invalid Done write
   that the owner API allowed and the auditor rejected.
+- [Container and App setup evidence](evidence/2026-09-24-containers.md): actual
+  synthetic boundary and live egress tests, the proxy's demonstrated limitation,
+  and verified App/token scope provisioning.
 
 Add further evidence only after execution, distinguishing local validation, live
 GitHub behavior, agent behavior, and permission enforcement.
